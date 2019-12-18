@@ -2,6 +2,7 @@ import requests
 import re
 import pickle
 import sys
+import time
 from bs4 import BeautifulSoup
 
 def getRealURL(response):
@@ -41,12 +42,20 @@ def addLinks(queue, redirects, links, broken_links):
     redirects.update({key: key})
     if key not in links:
         print("Adding to list: " + key)
+        direct_time = 0
+        direct_count = 0
+        dict_time = 0
+        dict_count = 0
         f_links = []
         broken = []
         o_links = getOriginalLinks(response)
         for link in o_links:
             if link in redirects:
+                start = time.time()
                 value = redirects[link]
+                end = time.time()
+                dict_time += (end - start)
+                dict_count += 1
                 f_links.append(value)
                 if value not in links:
                     queue.append(value)
@@ -54,6 +63,7 @@ def addLinks(queue, redirects, links, broken_links):
                 new_response = None
                 tries = 0
                 worked = False
+                start = time.time()
                 while tries < 100:
                     try:
                         new_response = requests.get("https://en.wikipedia.org/wiki/" + link, timeout=1)
@@ -63,6 +73,9 @@ def addLinks(queue, redirects, links, broken_links):
                         print("Failed to load page: https://en.wikipedia.org/wiki/" + link)
                         tries += 1
                 if worked:
+                    end = time.time()
+                    direct_time += (end - start)
+                    direct_count += 1
                     new_url = getRealURL(new_response)
                     value = new_url.split("/wiki/")[1]
                     f_links.append(value)
@@ -73,8 +86,10 @@ def addLinks(queue, redirects, links, broken_links):
                     broken.append(value)
         links[key] = set(f_links)
         if len(broken) > 0:
-            broken_links[key] = set(broken_links)
+            broken_links[key] = set(broken)
         print("Added to list: " + key)
+        print(f"Direct time: {direct_time} / {direct_count}, Dictionary time: {dict_time} / {dict_count}")
+        print()
 
 queue = ['Niskayuna_High_School']
 redirects = {}
